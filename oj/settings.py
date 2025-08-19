@@ -67,6 +67,7 @@ MIDDLEWARE = (
     'account.middleware.AdminRoleRequiredMiddleware',
     'account.middleware.SessionRecordMiddleware',
     # 'account.middleware.LogSqlMiddleware',
+    'oj.require_login.RequireLoginForPublicAPIs',
 )
 ROOT_URLCONF = 'oj.urls'
 
