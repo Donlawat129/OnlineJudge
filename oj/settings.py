@@ -246,3 +246,20 @@ RAVEN_CONFIG = {
 IP_HEADER = "HTTP_X_REAL_IP"
 
 DEFAULT_AUTO_FIELD='django.db.models.AutoField'
+
+# --- Enforce login for all DRF APIs (toggle by REQUIRE_LOGIN_FOR_PUBLIC) ---
+import os as _os
+REST_FRAMEWORK = {
+'TEST_REQUEST_DEFAULT_FORMAT': 'json',
+'DEFAULT_RENDERER_CLASSES': (
+    'rest_framework.renderers.JSONRenderer',
+),
+'DEFAULT_AUTHENTICATION_CLASSES': (
+    'rest_framework.authentication.SessionAuthentication',
+),
+'DEFAULT_PERMISSION_CLASSES': (
+    ('rest_framework.permissions.IsAuthenticated',)
+    if _os.environ.get('REQUIRE_LOGIN_FOR_PUBLIC','1')=='1'
+    else ('rest_framework.permissions.AllowAny',)
+    ),
+}
