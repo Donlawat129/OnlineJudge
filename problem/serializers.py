@@ -47,7 +47,7 @@ class ProblemIOModeSerializer(serializers.Serializer):
         return attrs
 
 
-class CreateProblemSerializer(serializers.Serializer):
+class CreateOrEditProblemSerializer(serializers.Serializer):
     _id = serializers.CharField(max_length=32, allow_blank=True, allow_null=True)
     title = serializers.CharField(max_length=1024)
     description = serializers.CharField()
@@ -72,25 +72,6 @@ class CreateProblemSerializer(serializers.Serializer):
     hint = serializers.CharField(allow_blank=True, allow_null=True)
     source = serializers.CharField(max_length=256, allow_blank=True, allow_null=True)
     share_submission = serializers.BooleanField()
-
-    def validate_tags(self, value):
-        # ตรวจสอบและเพิ่ม tag ถ้ายังไม่มี
-        names = self._normalize_tag_names(value)
-        for n in names:
-            tag, created = ProblemTag.objects.get_or_create(name__iexact=n, defaults={"name": n})
-        return names
-
-    def _normalize_tag_names(self, values):
-        names = []
-        for x in values or []:
-            if isinstance(x, dict):
-                n = (x.get("name") or x.get("text") or "").strip()
-            else:
-                n = str(x).strip()
-            if n:
-                names.append(n[:32])
-        # unique & keep order
-        return list(dict.fromkeys(names))
 
 
 class CreateProblemSerializer(CreateOrEditProblemSerializer):
