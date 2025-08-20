@@ -73,34 +73,6 @@ class CreateOrEditProblemSerializer(serializers.Serializer):
     source = serializers.CharField(max_length=256, allow_blank=True, allow_null=True)
     share_submission = serializers.BooleanField()
 
-    # ---------- helper & validator สำหรับแท็ก ----------
-    def _normalize_tag_names(self, values):
-        """
-        รับค่าที่เป็น list ของ string หรือ dict ที่มี key 'name' ก็ได้
-        คืนค่าเป็น list ของชื่อแท็ก แบบ trim, ตัดความยาว และ unique รักษาลำดับ
-        """
-        names = []
-        for x in values or []:
-            if isinstance(x, dict):
-                n = (x.get("name") or x.get("text") or "").strip()
-            else:
-                n = str(x).strip()
-            if n:
-                names.append(n[:32])
-        # unique & keep order
-        return list(dict.fromkeys(names))
-
-    def validate_tags(self, value):
-        """
-        ถ้าแท็กยังไม่มี ให้สร้าง Tag ใหม่ทันที (get_or_create)
-        เพื่อให้เซฟปัญหาแล้ว แท็กจะคงอยู่และนำไปใช้กับปัญหาอื่นได้
-        """
-        names = self._normalize_tag_names(value)
-        for n in names:
-            # case-insensitive unique
-            Tag.objects.get_or_create(name__iexact=n, defaults={"name": n})
-        return names
-
 
 class CreateProblemSerializer(CreateOrEditProblemSerializer):
     pass
