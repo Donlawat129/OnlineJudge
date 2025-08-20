@@ -50,9 +50,9 @@ class ProblemIOModeSerializer(serializers.Serializer):
 class CreateOrEditProblemSerializer(serializers.Serializer):
     _id = serializers.CharField(max_length=32, allow_blank=True, allow_null=True)
     title = serializers.CharField(max_length=1024)
-    description = serializers.CharField()
-    input_description = serializers.CharField()
-    output_description = serializers.CharField()
+    description = serializers.CharField(allow_null=True)
+    input_description = serializers.CharField(allow_null=True)
+    output_description = serializers.CharField(allow_null=True)
     samples = serializers.ListField(child=CreateSampleSerializer(), allow_empty=False)
     test_case_id = serializers.CharField(max_length=32)
     test_case_score = serializers.ListField(child=CreateTestCaseScoreSerializer(), allow_empty=True)
