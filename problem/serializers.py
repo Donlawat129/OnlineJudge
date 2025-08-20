@@ -73,6 +73,21 @@ class CreateOrEditProblemSerializer(serializers.Serializer):
     source = serializers.CharField(max_length=256, allow_blank=True, allow_null=True)
     share_submission = serializers.BooleanField()
 
+    def create_or_edit_tags(self, tag_names):
+        tags = []
+        for name in tag_names:
+            tag, created = ProblemTag.objects.get_or_create(name=name)  # สร้างหรือดึง tag ตามชื่อ
+            tags.append(tag)
+        return tags
+
+    def save(self, *args, **kwargs):
+        # ดึง tag ที่ได้รับมา
+        tag_names = self.validated_data.get('tags', [])
+        tags = self.create_or_edit_tags(tag_names)
+        
+        # เพิ่ม tags เข้าไปในข้อมูลที่ต้องการ
+        self.instance.tags.set(tags)
+
 
 class CreateProblemSerializer(CreateOrEditProblemSerializer):
     pass
