@@ -10,8 +10,6 @@ from utils.serializers import LanguageNameMultiChoiceField, SPJLanguageNameChoic
 from .models import Problem, ProblemRuleType, ProblemTag, ProblemIOMode
 from .utils import parse_problem_template
 
-from problem.models import Tag
-
 
 class TestCaseUploadForm(forms.Form):
     spj = forms.CharField(max_length=12)
