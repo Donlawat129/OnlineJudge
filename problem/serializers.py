@@ -50,9 +50,9 @@ class ProblemIOModeSerializer(serializers.Serializer):
 class CreateOrEditProblemSerializer(serializers.Serializer):
     _id = serializers.CharField(max_length=32, allow_blank=True, allow_null=True)
     title = serializers.CharField(max_length=1024)
-    description = serializers.CharField(allow_null=True)
-    input_description = serializers.CharField(allow_null=True)
-    output_description = serializers.CharField(allow_null=True)
+    description = serializers.CharField(allow_blank=True, allow_null=True)
+    input_description = serializers.CharField(allow_blank=True, allow_null=True)
+    output_description = serializers.CharField(allow_blank=True, allow_null=True)
     samples = serializers.ListField(child=CreateSampleSerializer(), allow_empty=False)
     test_case_id = serializers.CharField(max_length=32)
     test_case_score = serializers.ListField(child=CreateTestCaseScoreSerializer(), allow_empty=True)
@@ -74,18 +74,20 @@ class CreateOrEditProblemSerializer(serializers.Serializer):
     share_submission = serializers.BooleanField()
 
     def create_or_edit_tags(self, tag_names):
+        """
+        สร้างหรือดึง tag ตามชื่อที่ผู้ใช้ส่งมา
+        """
         tags = []
         for name in tag_names:
-            tag, created = ProblemTag.objects.get_or_create(name=name)  # สร้างหรือดึง tag ตามชื่อ
+            tag, created = ProblemTag.objects.get_or_create(name=name)  # สร้างหรือดึง tag
             tags.append(tag)
         return tags
 
     def save(self, *args, **kwargs):
-        # ดึง tag ที่ได้รับมา
         tag_names = self.validated_data.get('tags', [])
         tags = self.create_or_edit_tags(tag_names)
         
-        # เพิ่ม tags เข้าไปในข้อมูลที่ต้องการ
+        # เพิ่ม tags เข้าไปในข้อมูลของ problem
         self.instance.tags.set(tags)
 
 
