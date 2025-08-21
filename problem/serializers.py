@@ -19,8 +19,8 @@ class TestCaseUploadForm(forms.Form):
 
 
 class CreateSampleSerializer(serializers.Serializer):
-    input = serializers.CharField(trim_whitespace=False, required=False)
-    output = serializers.CharField(trim_whitespace=False, required=False)
+    input = serializers.CharField(trim_whitespace=False, allow_blank=True, allow_null=True)
+    output = serializers.CharField(trim_whitespace=False, allow_blank=True, allow_null=True)
 
 
 class CreateTestCaseScoreSerializer(serializers.Serializer):
