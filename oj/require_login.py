@@ -6,6 +6,7 @@ PROTECTED_PREFIXES = (
     "/api/problem", "/api/problems",
     "/api/submission", "/api/status",
     "/api/rank", "/api/acm-rank", "/api/oi-rank",
+    "/api/user_rank",
 )
 class RequireLoginForPublicAPIs:
     def __init__(self, get_response): self.get_response = get_response
