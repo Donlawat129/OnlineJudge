@@ -117,3 +117,29 @@ class UserProfile(models.Model):
 
     class Meta:
         db_table = "user_profile"
+
+
+# ===== Group & UserGroup models =====
+class Group(models.Model):
+    name = models.CharField(max_length=64, unique=True, db_index=True)
+    created_by = models.ForeignKey(
+        User, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="created_groups"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "group"
+
+    def __str__(self):
+        return self.name
+
+
+class UserGroup(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_groups")
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="members")
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "user_group"
+        unique_together = ("user", "group")
