@@ -16,6 +16,10 @@ from ..models import AdminType, ProblemPermission, User, UserProfile
 from ..serializers import EditUserSerializer, UserAdminSerializer, GenerateUserSerializer
 from ..serializers import ImportUserSeralizer
 
+# [ADD]
+from ..serializers import GroupSerializer, GroupCreateSerializer, AssignUsersToGroupSerializer
+from ..models import Group, UserGroup
+
 
 class UserAdminAPI(APIView):
     @validate_serializer(ImportUserSeralizer)
@@ -200,3 +204,53 @@ class GenerateUserAPI(APIView):
             #    duplicate key value violates unique constraint "user_username_key"
             #    DETAIL:  Key (username)=(root11) already exists.
             return self.error(str(e).split("\n")[1])
+
+
+# ===== Groups API =====
+class AdminGroupAPI(APIView):
+    """
+    GET  /api/admin/groups        -> list groups
+    POST /api/admin/groups        -> create group {name}
+    """
+    @super_admin_required
+    def get(self, request):
+        qs = Group.objects.order_by("name")
+        data = GroupSerializer(qs, many=True).data
+        return self.success(data)
+
+    @validate_serializer(GroupCreateSerializer)
+    @super_admin_required
+    def post(self, request):
+        name = request.data["name"].strip()
+        group, _created = Group.objects.get_or_create(name=name, defaults={"created_by": request.user})
+        return self.success(GroupSerializer(group).data)
+
+
+class AdminAssignUsersToGroupAPI(APIView):
+    """
+    POST /api/admin/groups/assign
+    body: { "user_ids":[1,2,3], "group_name":"A1", "replace_existing": false }
+    """
+    @validate_serializer(AssignUsersToGroupSerializer)
+    @super_admin_required
+    def post(self, request):
+        user_ids = request.data["user_ids"]
+        group_name = request.data["group_name"].strip()
+        replace_existing = request.data.get("replace_existing", False)
+
+        if not group_name:
+            return self.error("group_name is required")
+
+        users = list(User.objects.filter(id__in=user_ids))
+        if not users:
+            return self.error("No valid users found")
+
+        group, _created = Group.objects.get_or_create(name=group_name, defaults={"created_by": request.user})
+
+        with transaction.atomic():
+            for u in users:
+                if replace_existing:
+                    UserGroup.objects.filter(user=u).delete()
+                UserGroup.objects.get_or_create(user=u, group=group)
+
+        return self.success()
