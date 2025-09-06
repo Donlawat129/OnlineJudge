@@ -67,14 +67,17 @@ class UserAdminSerializer(serializers.ModelSerializer):
             return obj.userprofile.real_name
         except UserProfile.DoesNotExist:
             return None
-
+            
     def get_groups(self, obj):
-        return list(
-            UserGroup.objects.filter(user=obj)
-            .select_related("group")
-            .values_list("group__name", flat=True)
-        )
-
+        try:
+            return list(
+                UserGroup.objects.filter(user=obj)
+                .select_related("group")
+                .values_list("group__name", flat=True)
+            )
+        except Exception:
+            # กันไม่ให้ทั้ง API ล้ม ถ้าตาราง/สคีมา/ข้อมูลมีปัญหา
+            return []
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
