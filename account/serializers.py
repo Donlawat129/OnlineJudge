@@ -62,7 +62,11 @@ class UserAdminSerializer(serializers.ModelSerializer):
         ]
 
     def get_real_name(self, obj):
-        return obj.userprofile.real_name
+        # กันกรณี user ยังไม่มี profile
+        try:
+            return obj.userprofile.real_name
+        except UserProfile.DoesNotExist:
+            return None
 
     def get_groups(self, obj):
         return list(
