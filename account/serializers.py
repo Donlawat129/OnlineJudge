@@ -110,4 +110,53 @@ class EditUserProfileSerializer(serializers.Serializer):
     language = serializers.CharField(max_length=32, allow_blank=True, required=False)
 
 
-class ApplyResetPasswordSerializer(seria
+class ApplyResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    captcha = serializers.CharField()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    password = serializers.CharField(min_length=6)
+    captcha = serializers.CharField()
+
+
+class SSOSerializer(serializers.Serializer):
+    token = serializers.CharField()
+
+
+class TwoFactorAuthCodeSerializer(serializers.Serializer):
+    code = serializers.IntegerField()
+
+
+class ImageUploadForm(forms.Form):
+    image = forms.FileField()
+
+
+class FileUploadForm(forms.Form):
+    file = forms.FileField()
+
+
+class RankInfoSerializer(serializers.ModelSerializer):
+    user = UsernameSerializer()
+
+    class Meta:
+        model = UserProfile
+        fields = "__all__"
+
+
+# ===== Group serializers =====
+class GroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ("id", "name")
+
+
+class GroupCreateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=64)
+
+
+class AssignUsersToGroupSerializer(serializers.Serializer):
+    user_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=False)
+    group_name = serializers.CharField(max_length=64)
+    replace_existing = serializers.BooleanField(required=False, default=False)
