@@ -37,7 +37,9 @@ VENDOR_APPS = [
     'django_dbconn_retry',
 ]
 
-if production_env:
+# [REPLACE ด้วย]
+SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
+if production_env and SENTRY_DSN:
     VENDOR_APPS.append('raven.contrib.django.raven_compat')
 
 
@@ -138,7 +140,7 @@ UPLOAD_DIR = f"{DATA_DIR}{UPLOAD_PREFIX}"
 STATICFILES_DIRS = [os.path.join(DATA_DIR, "public")]
 
 
-LOGGING_HANDLERS = ['console', 'sentry'] if production_env else ['console']
+LOGGING_HANDLERS = ['console', 'sentry'] if (production_env and SENTRY_DSN) else ['console']
 LOGGING = {
    'version': 1,
    'disable_existing_loggers': False,
@@ -240,9 +242,8 @@ DRAMATIQ_RESULT_BACKEND = {
     }
 }
 
-RAVEN_CONFIG = {
-    'dsn': 'https://b200023b8aed4d708fb593c5e0a6ad3d:1fddaba168f84fcf97e0d549faaeaff0@sentry.io/263057'
-}
+if production_env and SENTRY_DSN:
+    RAVEN_CONFIG = {'dsn': SENTRY_DSN}
 
 IP_HEADER = "HTTP_X_REAL_IP"
 
