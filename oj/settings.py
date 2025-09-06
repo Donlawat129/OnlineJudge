@@ -10,7 +10,6 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.8/ref/settings/
 """
 import os
-import raven
 from copy import deepcopy
 from utils.shortcuts import get_env
 
@@ -40,8 +39,8 @@ VENDOR_APPS = [
 # [REPLACE ด้วย]
 SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
 if production_env and SENTRY_DSN:
+    import raven
     VENDOR_APPS.append('raven.contrib.django.raven_compat')
-
 
 LOCAL_APPS = [
     'account',
@@ -186,15 +185,24 @@ LOGGING = {
    },
 }
 
+# ---- DRF: ใช้บล็อกเดียว (ตัวล่าง) เพื่อบังคับ login ตาม ENV ----
+import os as _os
 REST_FRAMEWORK = {
     'TEST_REQUEST_DEFAULT_FORMAT': 'json',
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
-    )
+    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        ('rest_framework.permissions.IsAuthenticated',)
+        if _os.environ.get('REQUIRE_LOGIN_FOR_PUBLIC', '1') == '1'
+        else ('rest_framework.permissions.AllowAny',)
+    ),
 }
 
 REDIS_URL = "redis://%s:%s" % (REDIS_CONF["host"], REDIS_CONF["port"])
-
 
 def redis_config(db):
     def make_key(key, key_prefix, version):
@@ -207,7 +215,6 @@ def redis_config(db):
         "KEY_PREFIX": "",
         "KEY_FUNCTION": make_key
     }
-
 
 CACHES = {
     "default": redis_config(db=1)
@@ -246,22 +253,4 @@ if production_env and SENTRY_DSN:
     RAVEN_CONFIG = {'dsn': SENTRY_DSN}
 
 IP_HEADER = "HTTP_X_REAL_IP"
-
 DEFAULT_AUTO_FIELD='django.db.models.AutoField'
-
-# --- Enforce login for all DRF APIs (toggle by REQUIRE_LOGIN_FOR_PUBLIC) ---
-import os as _os
-REST_FRAMEWORK = {
-'TEST_REQUEST_DEFAULT_FORMAT': 'json',
-'DEFAULT_RENDERER_CLASSES': (
-    'rest_framework.renderers.JSONRenderer',
-),
-'DEFAULT_AUTHENTICATION_CLASSES': (
-    'rest_framework.authentication.SessionAuthentication',
-),
-'DEFAULT_PERMISSION_CLASSES': (
-    ('rest_framework.permissions.IsAuthenticated',)
-    if _os.environ.get('REQUIRE_LOGIN_FOR_PUBLIC','1')=='1'
-    else ('rest_framework.permissions.AllowAny',)
-    ),
-}
