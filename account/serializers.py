@@ -3,6 +3,8 @@ from django import forms
 from utils.api import serializers, UsernameSerializer
 
 from .models import AdminType, ProblemPermission, User, UserProfile
+# [ADD]
+from .models import Group
 
 
 class UserLoginSerializer(serializers.Serializer):
@@ -108,36 +110,4 @@ class EditUserProfileSerializer(serializers.Serializer):
     language = serializers.CharField(max_length=32, allow_blank=True, required=False)
 
 
-class ApplyResetPasswordSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    captcha = serializers.CharField()
-
-
-class ResetPasswordSerializer(serializers.Serializer):
-    token = serializers.CharField()
-    password = serializers.CharField(min_length=6)
-    captcha = serializers.CharField()
-
-
-class SSOSerializer(serializers.Serializer):
-    token = serializers.CharField()
-
-
-class TwoFactorAuthCodeSerializer(serializers.Serializer):
-    code = serializers.IntegerField()
-
-
-class ImageUploadForm(forms.Form):
-    image = forms.FileField()
-
-
-class FileUploadForm(forms.Form):
-    file = forms.FileField()
-
-
-class RankInfoSerializer(serializers.ModelSerializer):
-    user = UsernameSerializer()
-
-    class Meta:
-        model = UserProfile
-        fields = "__all__"
+class ApplyResetPasswordSerializer(seria
