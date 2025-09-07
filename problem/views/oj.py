@@ -9,11 +9,23 @@ from contest.models import ContestRuleType
 
 class ProblemTagAPI(APIView):
     def get(self, request):
-        qs = ProblemTag.objects
+        # เอา “ชุดโจทย์ที่ user เห็นได้” มาก่อน
+        visible_qs = _filter_problems_for_user(
+            Problem.objects.filter(contest_id__isnull=True),
+            request.user
+        )
+
         keyword = request.GET.get("keyword")
+        tags = ProblemTag.objects.all()
         if keyword:
-            qs = ProblemTag.objects.filter(name__icontains=keyword)
-        tags = qs.annotate(problem_count=Count("problem")).filter(problem_count__gt=0)
+            tags = tags.filter(name__icontains=keyword)
+
+        # นับเฉพาะความสัมพันธ์ที่อยู่ใน visible_qs
+        tags = tags.filter(problem__in=visible_qs) \
+                   .annotate(problem_count=Count('problem', filter=Q(problem__in=visible_qs))) \
+                   .filter(problem_count__gt=0) \
+                   .distinct()
+
         return self.success(TagSerializer(tags, many=True).data)
 
 
