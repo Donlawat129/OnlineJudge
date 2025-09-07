@@ -13,13 +13,16 @@ from utils.shortcuts import rand_str
 
 from ..decorators import super_admin_required
 from ..models import AdminType, ProblemPermission, User, UserProfile
-from ..serializers import EditUserSerializer, UserAdminSerializer, GenerateUserSerializer
-from ..serializers import ImportUserSeralizer
+from ..serializers import (
 
 # [ADD]
 from ..serializers import GroupSerializer, GroupCreateSerializer, AssignUsersToGroupSerializer
 from ..models import Group, UserGroup
-
+    EditUserSerializer, UserAdminSerializer, GenerateUserSerializer,
+    ImportUserSeralizer, GroupSerializer, AssignUsersToGroupSerializer,
+    BulkUsersSerializer
+)
+from ..models import Group, UserGroup
 
 class UserAdminAPI(APIView):
     @validate_serializer(ImportUserSeralizer)
@@ -205,52 +208,53 @@ class GenerateUserAPI(APIView):
             #    DETAIL:  Key (username)=(root11) already exists.
             return self.error(str(e).split("\n")[1])
 
+# ==== Group Management APIs ====
+from ..serializers import (
+    GroupSerializer, AssignUsersToGroupSerializer, BulkUsersSerializer
+)
+from ..models import Group, UserGroup
 
-# ===== Groups API =====
-class AdminGroupAPI(APIView):
-    """
-    GET  /api/admin/groups        -> list groups
-    POST /api/admin/groups        -> create group {name}
-    """
+class GroupAPI(APIView):
     @super_admin_required
     def get(self, request):
-        qs = Group.objects.order_by("name")
-        data = GroupSerializer(qs, many=True).data
-        return self.success(data)
+        groups = Group.objects.all().order_by("name")
+        return self.success(GroupSerializer(groups, many=True).data)
 
-    @validate_serializer(GroupCreateSerializer)
-    @super_admin_required
-    def post(self, request):
-        name = request.data["name"].strip()
-        group, _created = Group.objects.get_or_create(name=name, defaults={"created_by": request.user})
-        return self.success(GroupSerializer(group).data)
-
-
-class AdminAssignUsersToGroupAPI(APIView):
-    """
-    POST /api/admin/groups/assign
-    body: { "user_ids":[1,2,3], "group_name":"A1", "replace_existing": false }
-    """
+class GroupAssignAPI(APIView):
     @validate_serializer(AssignUsersToGroupSerializer)
     @super_admin_required
     def post(self, request):
+        data = request.data
+        name = data["group_name"].strip()
+        group, _ = Group.objects.get_or_create(name=name)
+        user_ids = data["user_ids"]
+        if data.get("replace_existing"):
+            UserGroup.objects.filter(user_id__in=user_ids).delete()
+        existing = set(UserGroup.objects.filter(user_id__in=user_ids, group=group)
+                       .values_list("user_id", flat=True))
+        to_create = [UserGroup(user_id=uid, group=group) for uid in user_ids if uid not in existing]
+        if to_create:
+            UserGroup.objects.bulk_create(to_create)
+        return self.success()
+
+class GroupRemoveAPI(APIView):
+    @super_admin_required
+    def post(self, request):
+        user_ids = request.data.get("user_ids") or []
+        group_name = (request.data.get("group_name") or "").strip()
+        if not user_ids or not group_name:
+            return self.error("user_ids and group_name are required")
+        try:
+            group = Group.objects.get(name=group_name)
+        except Group.DoesNotExist:
+            return self.success()
+        UserGroup.objects.filter(user_id__in=user_ids, group=group).delete()
+        return self.success()
+
+class GroupClearAPI(APIView):
+    @validate_serializer(BulkUsersSerializer)
+    @super_admin_required
+    def post(self, request):
         user_ids = request.data["user_ids"]
-        group_name = request.data["group_name"].strip()
-        replace_existing = request.data.get("replace_existing", False)
-
-        if not group_name:
-            return self.error("group_name is required")
-
-        users = list(User.objects.filter(id__in=user_ids))
-        if not users:
-            return self.error("No valid users found")
-
-        group, _created = Group.objects.get_or_create(name=group_name, defaults={"created_by": request.user})
-
-        with transaction.atomic():
-            for u in users:
-                if replace_existing:
-                    UserGroup.objects.filter(user=u).delete()
-                UserGroup.objects.get_or_create(user=u, group=group)
-
+        UserGroup.objects.filter(user_id__in=user_ids).delete()
         return self.success()
