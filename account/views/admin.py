@@ -119,25 +119,14 @@ class UserAdminAPI(APIView):
 
     @super_admin_required
     def delete(self, request):
-        # รับได้ทั้ง ids หรือ id, ทั้งจาก query และจาก body
-        raw = (request.GET.get("ids") or request.GET.get("id") or
-               request.data.get("ids") or request.data.get("id"))
-        if not raw:
-            return self.error("Invalid parameter: id(s) is required")
-    
-        # แปลงเป็นลิสต์ของสตริงตัวเลข
-        if isinstance(raw, list):
-            ids = [str(i) for i in raw if str(i)]
-        else:
-            ids = [s for s in str(raw).split(",") if s]
-    
-        # กันลบตัวเอง
+        id = request.GET.get("id")
+        if not id:
+            return self.error("Invalid Parameter, id is required")
+        ids = id.split(",")
         if str(request.user.id) in ids:
             return self.error("Current user can not be deleted")
-    
         User.objects.filter(id__in=ids).delete()
         return self.success()
-
 
 class GenerateUserAPI(APIView):
     @super_admin_required
