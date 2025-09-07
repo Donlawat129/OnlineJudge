@@ -114,3 +114,18 @@ class ProblemGroup(models.Model):
         indexes = [
             models.Index(fields=['problem', 'group']),
         ]
+
+
+def _filter_problems_for_user(qs, user):
+    """
+    จำกัดสิทธิ์การเห็นโจทย์:
+    - Admin / Super Admin: เห็นทั้งหมด (ไม่กรอง)
+    - ผู้ใช้ทั่วไปล็อกอิน: เห็นเฉพาะ visible และ (ไม่ผูกกลุ่ม) หรือ (อยู่ในกลุ่มที่ผูกไว้)
+    - บุคคลภายนอก: เห็นเฉพาะ visible และไม่ผูกกลุ่ม
+    """
+    if user.is_authenticated and getattr(user, 'admin_type', '') in ('Admin', 'Super Admin'):
+        return qs
+    qs = qs.filter(visible=True)
+    user_groups = Group.objects.filter(usergroup__user=user) if user.is_authenticated else Group.objects.none()
+    # ใช้ 'groups__' ตาม M2M ของ Problem
+    return qs.filter(Q(groups__isnull=True) | Q(groups__in=user_groups)).distinct()
