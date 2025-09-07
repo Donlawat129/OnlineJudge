@@ -6,6 +6,9 @@ from contest.models import Contest
 from utils.models import RichTextField
 from utils.constants import Choices
 
+# สมมติไฟล์ Group อยู่ที่ account.models
+from account.models import Group
+
 
 class ProblemTag(models.Model):
     name = models.TextField()
@@ -81,6 +84,12 @@ class Problem(models.Model):
     # {JudgeStatus.ACCEPTED: 3, JudgeStaus.WRONG_ANSWER: 11}, the number means count
     statistic_info = JSONField(default=dict)
     share_submission = models.BooleanField(default=False)
+    groups = models.ManyToManyField(
+        Group,
+        through='ProblemGroup',
+        related_name='problems',
+        blank=True
+    )
 
     class Meta:
         db_table = "problem"
@@ -94,3 +103,14 @@ class Problem(models.Model):
     def add_ac_number(self):
         self.accepted_number = models.F("accepted_number") + 1
         self.save(update_fields=["accepted_number"])
+
+
+class ProblemGroup(models.Model):
+    problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
+    group = models.ForeignKey(Group, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('problem', 'group')
+        indexes = [
+            models.Index(fields=['problem', 'group']),
+        ]
