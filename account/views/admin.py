@@ -117,16 +117,32 @@ class UserAdminAPI(APIView):
             )
         return self.success(self.paginate_data(request, qs, UserAdminSerializer))
 
+    #@super_admin_required
+    #def delete(self, request):
+    #    id = request.GET.get("id")
+    #    if not id:
+    #        return self.error("Invalid Parameter, id is required")
+    #    ids = id.split(",")
+    #    if str(request.user.id) in ids:
+    #        return self.error("Current user can not be deleted")
+    #    User.objects.filter(id__in=ids).delete()
+    #    return self.success()
+
     @super_admin_required
     def delete(self, request):
-        id = request.GET.get("id")
-        if not id:
+        raw = request.GET.get("id") or request.data.get("id") or request.data.get("ids")
+        if not raw:
             return self.error("Invalid Parameter, id is required")
-        ids = id.split(",")
-        if str(request.user.id) in ids:
-            return self.error("Current user can not be deleted")
-        User.objects.filter(id__in=ids).delete()
+    
+        parts = [s.strip() for s in str(raw).split(",")]
+        ids = [s for s in parts if s.isdigit()]
+        if not ids:
+            return self.error("Invalid id(s)")
+    
+        # ถ้ามี FK อื่น ๆ ที่ไม่ cascade ค่อยจัดการลบความสัมพันธ์ก่อน
+        Problem.objects.filter(id__in=ids).delete()
         return self.success()
+
 
 class GenerateUserAPI(APIView):
     @super_admin_required
