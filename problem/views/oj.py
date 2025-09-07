@@ -74,21 +74,26 @@ class ProblemAPI(APIView):
         if not limit:
             return self.error("Limit is needed")
 
-        problems = Problem.objects.select_related("created_by").filter(contest_id__isnull=True, visible=True)
-        # 按照标签筛选
+        problems = _filter_problems_for_user(
+            Problem.objects.select_related("created_by").filter(contest_id__isnull=True),
+            request.user
+        )
+
+       # 按照标签筛选
         tag_text = request.GET.get("tag")
         if tag_text:
             problems = problems.filter(tags__name=tag_text)
-
+        
         # 搜索的情况
         keyword = request.GET.get("keyword", "").strip()
         if keyword:
             problems = problems.filter(Q(title__icontains=keyword) | Q(_id__icontains=keyword))
-
+        
         # 难度筛选
         difficulty = request.GET.get("difficulty")
         if difficulty:
             problems = problems.filter(difficulty=difficulty)
+
         # 根据profile 为做过的题目添加标记
         data = self.paginate_data(request, problems, ProblemSerializer)
         self._add_problem_status(request, data)
