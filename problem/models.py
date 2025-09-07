@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from utils.models import JSONField
 
 from account.models import User
@@ -7,7 +8,7 @@ from utils.models import RichTextField
 from utils.constants import Choices
 
 # สมมติไฟล์ Group อยู่ที่ account.models
-from account.models import Group
+from account.models import Group, UserGroup
 
 
 class ProblemTag(models.Model):
@@ -125,7 +126,17 @@ def _filter_problems_for_user(qs, user):
     """
     if user.is_authenticated and getattr(user, 'admin_type', '') in ('Admin', 'Super Admin'):
         return qs
+
     qs = qs.filter(visible=True)
-    user_groups = Group.objects.filter(usergroup__user=user) if user.is_authenticated else Group.objects.none()
-    # ใช้ 'groups__' ตาม M2M ของ Problem
-    return qs.filter(Q(groups__isnull=True) | Q(groups__in=user_groups)).distinct()
+
+    if user.is_authenticated:
+        user_group_ids = UserGroup.objects.filter(user=user).values_list('group_id', flat=True)
+    else:
+        user_group_ids = []
+
+    # groups__isnull=True = ไม่มีการผูกกลุ่ม => ใครๆ เห็นได้ (ถ้า visible)
+    # groups__in = อยู่ในกลุ่มของ user => เห็นได้
+    return qs.filter(
+        Q(groups__isnull=True) | Q(groups__in=list(user_group_ids))
+    ).distinct()
+
