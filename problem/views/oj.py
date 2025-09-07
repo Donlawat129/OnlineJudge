@@ -2,7 +2,7 @@ import random
 from django.db.models import Q, Count
 from utils.api import APIView
 from account.decorators import check_contest_permission
-from ..models import ProblemTag, Problem, ProblemRuleType
+from ..models import ProblemTag, Problem, ProblemRuleType, _filter_problems_for_user
 from ..serializers import ProblemSerializer, TagSerializer, ProblemSafeSerializer
 from contest.models import ContestRuleType
 
