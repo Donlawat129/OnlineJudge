@@ -1,3 +1,4 @@
+# account/views/admin.py
 import os
 import re
 import xlsxwriter
@@ -12,55 +13,48 @@ from utils.api import APIView, validate_serializer
 from utils.shortcuts import rand_str
 
 from ..decorators import super_admin_required
-from ..models import AdminType, ProblemPermission, User, UserProfile
+from ..models import (
+    AdminType, ProblemPermission, User, UserProfile, Group, UserGroup
+)
 from ..serializers import (
-
-# [ADD]
-from ..serializers import GroupSerializer, GroupCreateSerializer, AssignUsersToGroupSerializer
-from ..models import Group, UserGroup
     EditUserSerializer, UserAdminSerializer, GenerateUserSerializer,
     ImportUserSeralizer, GroupSerializer, AssignUsersToGroupSerializer,
     BulkUsersSerializer
 )
-from ..models import Group, UserGroup
 
 class UserAdminAPI(APIView):
     @validate_serializer(ImportUserSeralizer)
     @super_admin_required
     def post(self, request):
-        """
-        Import User
-        """
         data = request.data["users"]
-
         user_list = []
         for user_data in data:
             if len(user_data) != 4 or len(user_data[0]) > 32:
                 return self.error(f"Error occurred while processing data '{user_data}'")
-            user_list.append(User(username=user_data[0], password=make_password(user_data[1]), email=user_data[2]))
-
+            user_list.append(User(
+                username=user_data[0],
+                password=make_password(user_data[1]),
+                email=user_data[2]
+            ))
         try:
             with transaction.atomic():
                 ret = User.objects.bulk_create(user_list)
-                UserProfile.objects.bulk_create([UserProfile(user=ret[i], real_name=data[i][3]) for i in range(len(ret))])
+                UserProfile.objects.bulk_create([
+                    UserProfile(user=ret[i], real_name=data[i][3]) for i in range(len(ret))
+                ])
             return self.success()
         except IntegrityError as e:
-            # Extract detail from exception message
-            #    duplicate key value violates unique constraint "user_username_key"
-            #    DETAIL:  Key (username)=(root11) already exists.
             return self.error(str(e).split("\n")[1])
 
     @validate_serializer(EditUserSerializer)
     @super_admin_required
     def put(self, request):
-        """
-        Edit user api
-        """
         data = request.data
         try:
             user = User.objects.get(id=data["id"])
         except User.DoesNotExist:
             return self.error("User does not exist")
+
         if User.objects.filter(username=data["username"].lower()).exclude(id=user.id).exists():
             return self.error("Username already exists")
         if User.objects.filter(email=data["email"].lower()).exclude(id=user.id).exists():
@@ -83,7 +77,6 @@ class UserAdminAPI(APIView):
             user.set_password(data["password"])
 
         if data["open_api"]:
-            # Avoid reset user appkey after saving changes
             if not user.open_api:
                 user.open_api_appkey = rand_str()
         else:
@@ -91,12 +84,10 @@ class UserAdminAPI(APIView):
         user.open_api = data["open_api"]
 
         if data["two_factor_auth"]:
-            # Avoid reset user tfa_token after saving changes
             if not user.two_factor_auth:
                 user.tfa_token = rand_str()
         else:
             user.tfa_token = None
-
         user.two_factor_auth = data["two_factor_auth"]
 
         user.save()
@@ -108,9 +99,6 @@ class UserAdminAPI(APIView):
 
     @super_admin_required
     def get(self, request):
-        """
-        User list api / Get user by id
-        """
         user_id = request.GET.get("id")
         if user_id:
             try:
@@ -119,33 +107,31 @@ class UserAdminAPI(APIView):
                 return self.error("User does not exist")
             return self.success(UserAdminSerializer(user).data)
 
-        user = User.objects.all().order_by("-create_time")
-
-        keyword = request.GET.get("keyword", None)
+        qs = User.objects.all().order_by("-create_time")
+        keyword = request.GET.get("keyword")
         if keyword:
-            user = user.filter(Q(username__icontains=keyword) |
-                               Q(userprofile__real_name__icontains=keyword) |
-                               Q(email__icontains=keyword))
-        return self.success(self.paginate_data(request, user, UserAdminSerializer))
+            qs = qs.filter(
+                Q(username__icontains=keyword) |
+                Q(userprofile__real_name__icontains=keyword) |
+                Q(email__icontains=keyword)
+            )
+        return self.success(self.paginate_data(request, qs, UserAdminSerializer))
 
     @super_admin_required
     def delete(self, request):
-        id = request.GET.get("id")
-        if not id:
-            return self.error("Invalid Parameter, id is required")
-        ids = id.split(",")
-        if str(request.user.id) in ids:
+        ids = request.GET.get("ids")  # <-- ให้รับ ids ตรงกับ frontend
+        if not ids:
+            return self.error("Invalid Parameter, ids is required")
+        id_list = ids.split(",")
+        if str(request.user.id) in id_list:
             return self.error("Current user can not be deleted")
-        User.objects.filter(id__in=ids).delete()
+        User.objects.filter(id__in=id_list).delete()
         return self.success()
 
 
 class GenerateUserAPI(APIView):
     @super_admin_required
     def get(self, request):
-        """
-        download users excel
-        """
         file_id = request.GET.get("file_id")
         if not file_id:
             return self.error("Invalid Parameter, file_id is required")
@@ -157,17 +143,14 @@ class GenerateUserAPI(APIView):
         with open(file_path, "rb") as f:
             raw_data = f.read()
         os.remove(file_path)
-        response = HttpResponse(raw_data)
-        response["Content-Disposition"] = "attachment; filename=users.xlsx"
-        response["Content-Type"] = "application/xlsx"
-        return response
+        resp = HttpResponse(raw_data)
+        resp["Content-Disposition"] = "attachment; filename=users.xlsx"
+        resp["Content-Type"] = "application/xlsx"
+        return resp
 
     @validate_serializer(GenerateUserSerializer)
     @super_admin_required
     def post(self, request):
-        """
-        Generate User
-        """
         data = request.data
         number_max_length = max(len(str(data["number_from"])), len(str(data["number_to"])))
         if number_max_length + len(data["prefix"]) + len(data["suffix"]) > 32:
@@ -187,32 +170,26 @@ class GenerateUserAPI(APIView):
         user_list = []
         for number in range(data["number_from"], data["number_to"] + 1):
             raw_password = rand_str(data["password_length"])
-            user = User(username=f"{data['prefix']}{number}{data['suffix']}", password=make_password(raw_password))
-            user.raw_password = raw_password
-            user_list.append(user)
+            u = User(username=f"{data['prefix']}{number}{data['suffix']}",
+                     password=make_password(raw_password))
+            u.raw_password = raw_password
+            user_list.append(u)
 
         try:
             with transaction.atomic():
-
                 ret = User.objects.bulk_create(user_list)
-                UserProfile.objects.bulk_create([UserProfile(user=user) for user in ret])
-                for item in user_list:
-                    worksheet.write_string(i, 0, item.username)
-                    worksheet.write_string(i, 1, item.raw_password)
+                UserProfile.objects.bulk_create([UserProfile(user=u) for u in ret])
+                for u in user_list:
+                    worksheet.write_string(i, 0, u.username)
+                    worksheet.write_string(i, 1, u.raw_password)
                     i += 1
                 workbook.close()
                 return self.success({"file_id": file_id})
         except IntegrityError as e:
-            # Extract detail from exception message
-            #    duplicate key value violates unique constraint "user_username_key"
-            #    DETAIL:  Key (username)=(root11) already exists.
             return self.error(str(e).split("\n")[1])
 
+
 # ==== Group Management APIs ====
-from ..serializers import (
-    GroupSerializer, AssignUsersToGroupSerializer, BulkUsersSerializer
-)
-from ..models import Group, UserGroup
 
 class GroupAPI(APIView):
     @super_admin_required
@@ -228,8 +205,10 @@ class GroupAssignAPI(APIView):
         name = data["group_name"].strip()
         group, _ = Group.objects.get_or_create(name=name)
         user_ids = data["user_ids"]
+
         if data.get("replace_existing"):
             UserGroup.objects.filter(user_id__in=user_ids).delete()
+
         existing = set(UserGroup.objects.filter(user_id__in=user_ids, group=group)
                        .values_list("user_id", flat=True))
         to_create = [UserGroup(user_id=uid, group=group) for uid in user_ids if uid not in existing]
