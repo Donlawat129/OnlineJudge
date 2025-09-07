@@ -4,7 +4,6 @@ from utils.api import serializers, UsernameSerializer
 
 from .models import AdminType, ProblemPermission, User, UserProfile, UserGroup, Group
 
-
 class UserLoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
@@ -198,3 +197,9 @@ class AssignUsersToGroupSerializer(serializers.Serializer):
         if missing:
             raise serializers.ValidationError(f"User id(s) not found: {missing}")
         return ids
+
+class BulkUsersSerializer(serializers.Serializer):
+     user_ids = serializers.ListField(
+         child=serializers.IntegerField(min_value=1),
+         allow_empty=False
+     )
