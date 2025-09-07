@@ -291,20 +291,22 @@ class ProblemAPI(ProblemBase):
         return self.success()
 
     @problem_permission_required
+    # admin ProblemAPI.delete (views.admin)
     def delete(self, request):
-        id = request.GET.get("id")
-        if not id:
+        id_ = request.GET.get("id")
+        if not id_:
             return self.error("Invalid parameter, id is required")
-        try:
-            problem = Problem.objects.get(id=id, contest_id__isnull=True)
-        except Problem.DoesNotExist:
-            return self.error("Problem does not exists")
-        ensure_created_by(problem, request.user)
-        # d = os.path.join(settings.TEST_CASE_DIR, problem.test_case_id)
-        # if os.path.isdir(d):
-        #     shutil.rmtree(d, ignore_errors=True)
-        problem.delete()
+    
+        ids = [s.strip() for s in str(id_).split(",") if s.strip()]
+        if not ids:
+            return self.error("Invalid parameter, id is required")
+    
+        qs = Problem.objects.filter(id__in=ids, contest_id__isnull=True)
+        for p in qs:
+            ensure_created_by(p, request.user)
+        qs.delete()
         return self.success()
+
 
 
 class ContestProblemAPI(ProblemBase):
