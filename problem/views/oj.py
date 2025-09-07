@@ -19,7 +19,10 @@ class ProblemTagAPI(APIView):
 
 class PickOneAPI(APIView):
     def get(self, request):
-        problems = Problem.objects.filter(contest_id__isnull=True, visible=True)
+        problems = _filter_problems_for_user(
+            Problem.objects.filter(contest_id__isnull=True),
+            request.user
+        )
         count = problems.count()
         if count == 0:
             return self.error("No problem to pick")
@@ -50,11 +53,20 @@ class ProblemAPI(APIView):
         problem_id = request.GET.get("problem_id")
         if problem_id:
             try:
-                problem = Problem.objects.select_related("created_by") \
-                    .get(_id=problem_id, contest_id__isnull=True, visible=True)
+                base_qs = Problem.objects.select_related("created_by").filter(
+                    _id=problem_id,
+                    contest_id__isnull=True
+                )
+                qs = _filter_problems_for_user(base_qs, request.user)
+                try:
+                    problem = qs.get()
+                except Problem.DoesNotExist:
+                    return self.error("Problem does not exist")
+        
                 problem_data = ProblemSerializer(problem).data
                 self._add_problem_status(request, problem_data)
                 return self.success(problem_data)
+                
             except Problem.DoesNotExist:
                 return self.error("Problem does not exist")
 
