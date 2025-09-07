@@ -1,7 +1,5 @@
 from django import forms
-
 from utils.api import serializers, UsernameSerializer
-
 from .models import AdminType, ProblemPermission, User, UserProfile, UserGroup, Group
 
 class UserLoginSerializer(serializers.Serializer):
@@ -51,23 +49,19 @@ class ImportUserSeralizer(serializers.Serializer):
 class UserAdminSerializer(serializers.ModelSerializer):
     real_name = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
-
     class Meta:
         model = User
-        fields = [
-            "id", "username", "email", "admin_type", "problem_permission", "real_name",
-            "create_time", "last_login", "two_factor_auth", "open_api", "is_disabled",
-            "groups"
-        ]
+        fields = ["id","username","email","admin_type","problem_permission","real_name",
+                  "create_time","last_login","two_factor_auth","open_api","is_disabled","groups"]
 
     def get_real_name(self, obj):
-        # กันกรณี user ยังไม่มี profile
         try:
             return obj.userprofile.real_name
         except UserProfile.DoesNotExist:
             return None
-            
+
     def get_groups(self, obj):
+        # กันพลาด ไม่ให้ 500 ทั้งก้อน
         try:
             return list(
                 UserGroup.objects.filter(user=obj)
@@ -75,8 +69,8 @@ class UserAdminSerializer(serializers.ModelSerializer):
                 .values_list("group__name", flat=True)
             )
         except Exception:
-            # กันไม่ให้ทั้ง API ล้ม ถ้าตาราง/สคีมา/ข้อมูลมีปัญหา
             return []
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -169,27 +163,20 @@ class GroupSerializer(serializers.ModelSerializer):
         model = Group
         fields = ("id", "name")
 
-
 class GroupCreateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=64)
 
-
 class AssignUsersToGroupSerializer(serializers.Serializer):
-    user_ids = serializers.ListField(
-        child=serializers.IntegerField(min_value=1),
-        allow_empty=False
-    )
+    user_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), allow_empty=False)
     group_name = serializers.CharField(max_length=64, allow_blank=False)
     replace_existing = serializers.BooleanField(required=False, default=False)
-
     def validate_group_name(self, value):
         value = (value or "").strip()
         if not value:
             raise serializers.ValidationError("Group name cannot be blank.")
         return value
-
     def validate_user_ids(self, value):
-        ids = list(dict.fromkeys(value))  # unique + keep order
+        ids = list(dict.fromkeys(value))
         if not ids:
             raise serializers.ValidationError("At least one user id is required.")
         existed = set(User.objects.filter(id__in=ids).values_list("id", flat=True))
@@ -199,7 +186,7 @@ class AssignUsersToGroupSerializer(serializers.Serializer):
         return ids
 
 class BulkUsersSerializer(serializers.Serializer):
-     user_ids = serializers.ListField(
-         child=serializers.IntegerField(min_value=1),
-         allow_empty=False
-     )
+    user_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False
+    )
