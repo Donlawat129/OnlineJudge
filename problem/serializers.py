@@ -131,6 +131,8 @@ class BaseProblemSerializer(serializers.ModelSerializer):
 
 
 class ProblemAdminSerializer(BaseProblemSerializer):
+    groups = serializers.SlugRelatedField(many=True, slug_field="name", read_only=True)
+    
     class Meta:
         model = Problem
         fields = "__all__"
