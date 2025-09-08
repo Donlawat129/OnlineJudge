@@ -294,3 +294,13 @@ class FPSProblemSerializer(serializers.Serializer):
     template = serializers.ListField(child=serializers.DictField(), allow_empty=True, allow_null=True)
     append = serializers.ListField(child=serializers.DictField(), allow_empty=True, allow_null=True)
     prepend = serializers.ListField(child=serializers.DictField(), allow_empty=True, allow_null=True)
+
+
+class ProblemAdminSerializer(BaseProblemSerializer):
+    # เพิ่มบรรทัดนี้ เพื่อให้ FE ได้ชื่อกลุ่มเป็น string
+    groups = serializers.SlugRelatedField(many=True, slug_field="name", read_only=True)
+
+    class Meta:
+        model = Problem
+        fields = "__all__"
+
