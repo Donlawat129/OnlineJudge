@@ -379,12 +379,28 @@ class UserRankAPI(APIView):
         rule_type = request.GET.get("rule")
         if rule_type not in ContestRuleType.choices():
             rule_type = ContestRuleType.ACM
-        profiles = UserProfile.objects.filter(user__admin_type=AdminType.REGULAR_USER, user__is_disabled=False) \
+
+        # ❶ เลือกเฉพาะผู้ใช้ที่อนุญาตตามกลุ่มเดียวกันก่อน
+        allowed_users = filter_users_in_same_groups(
+            User.objects.filter(is_disabled=False, admin_type=AdminType.REGULAR_USER),
+            request.user
+        )
+
+        # ❷ คิวรีโปรไฟล์เฉพาะของผู้ใช้ที่ผ่านการกรอง
+        profiles = (
+            UserProfile.objects
+            .filter(user__in=allowed_users)
             .select_related("user")
+        )
+
+        # ❸ เงื่อนไขจัดอันดับเหมือนเดิม
         if rule_type == ContestRuleType.ACM:
-            profiles = profiles.filter(submission_number__gt=0).order_by("-accepted_number", "submission_number")
-        else:
-            profiles = profiles.filter(total_score__gt=0).order_by("-total_score")
+            profiles = profiles.filter(submission_number__gt=0) \
+                               .order_by("-accepted_number", "submission_number")
+        else:  # OI
+            profiles = profiles.filter(total_score__gt=0) \
+                               .order_by("-total_score")
+
         return self.success(self.paginate_data(request, profiles, RankInfoSerializer))
 
 
