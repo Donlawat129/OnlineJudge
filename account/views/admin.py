@@ -130,30 +130,27 @@ class UserAdminAPI(APIView):
 
     @super_admin_required
     def delete(self, request):
-        # รองรับทั้ง querystring และ body
         raw = request.GET.get("id") or request.data.get("id") or request.data.get("ids")
         if not raw:
-            return self.error("Invalid parameter, id is required")
-
-        # แปลง "2,3,  5" -> [2,3,5]
-        try:
-            id_list = [int(s) for s in str(raw).split(",") if s.strip()]
-        except ValueError:
-            return self.error("Invalid id list")
-
-        # กันลบตัวเอง
-        id_list = [i for i in id_list if i != request.user.id]
-        if not id_list:
-            return self.success({"deleted": 0})
-
-        # ไม่ให้ลบ Super Admin
-        qs = User.objects.filter(id__in=id_list).exclude(admin_type=AdminType.SUPER_ADMIN)
-
-        # ถ้ากังวล FK อื่น ให้ลบความสัมพันธ์ก่อน (ส่วนใหญ่ตั้ง CASCADE ไว้อยู่แล้ว)
-        UserGroup.objects.filter(user_id__in=qs.values_list("id", flat=True)).delete()
-
-        deleted, _ = qs.delete()
-        return self.success({"deleted": deleted})
+            return self.error("Invalid Parameter, id is required")
+    
+        parts = [s.strip() for s in str(raw).split(",")]
+        ids = [int(s) for s in parts if s.isdigit()]
+        if not ids:
+            return self.error("Invalid id(s)")
+    
+        # ห้ามลบบัญชีตัวเอง
+        if request.user.id in ids:
+            return self.error("Current user can not be deleted")
+    
+        # ลบความสัมพันธ์ (ถ้าไม่ได้ตั้ง on_delete=CASCADE ไว้)
+        from account.models import UserGroup  # เผื่อ import ไม่อยู่ด้านบน
+        UserGroup.objects.filter(user_id__in=ids).delete()
+    
+        # ลบผู้ใช้
+        User.objects.filter(id__in=ids).delete()
+    
+        return self.success()
 
 
 class GenerateUserAPI(APIView):
