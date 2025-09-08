@@ -1,5 +1,4 @@
 # account/utils.py
-from django.db.models import Q
 from .models import Group
 
 ADMIN_SET = ('Admin', 'Super Admin')
@@ -14,9 +13,9 @@ def user_groups_qs(user):
 
 def filter_users_in_same_groups(qs, user):
     """
-    กรอง queryset ของ User ให้เหลือเฉพาะคนที่ 'แชร์อย่างน้อยหนึ่งกลุ่ม' กับ user ปัจจุบัน
-    - แอดมิน/ซุปเปอร์แอดมิน: เห็นทั้งหมด
-    - ถ้า user ไม่อยู่ในกลุ่มไหนเลย: เห็นเฉพาะผู้ใช้ที่ 'ไม่มี' กลุ่ม (usergroup.isnull=True)
+    แอดมิน/ซุปเปอร์แอดมิน: เห็นทั้งหมด
+    ผู้ใช้ทั่วไป: เห็นเฉพาะผู้ใช้ที่แชร์อย่างน้อยหนึ่งกลุ่มกับตน
+    ถ้าไม่ได้อยู่ในกลุ่มใดเลย: เห็นเฉพาะคนที่ไม่มีกลุ่ม
     """
     if is_admin_or_super(user):
         return qs
