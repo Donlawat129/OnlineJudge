@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from importlib import import_module
+from account.utils import filter_users_in_same_groups
 
 import qrcode
 from django.conf import settings
@@ -431,6 +432,28 @@ class SSOAPI(CSRFExemptAPIView):
     def post(self, request):
         try:
             user = User.objects.get(auth_token=request.data["token"])
+
+
+class ACMRankAPI(APIView):
+    def get(self, request):
+        # ... โค้ดเดิมประกอบ queryset ของผู้ใช้/อันดับ ...
+        qs = User.objects.filter(is_disabled=False)  # หรือ qs เดิมของคุณ
+        # ⭐ สำคัญ: กรองด้วยกลุ่มเดียวกัน
+        qs = filter_users_in_same_groups(qs, request.user)
+
+        # ที่เหลือตามเดิม (annotate/ordering/paginate/serialize)
+        data = self.paginate_data(request, qs, SomeUserRankSerializer)
+        return self.success(data)
+
+class OIRankAPI(APIView):
+    def get(self, request):
+        # ... โค้ดเดิมประกอบ queryset ...
+        qs = User.objects.filter(is_disabled=False)
+        # ⭐ กรองเหมือนกัน
+        qs = filter_users_in_same_groups(qs, request.user)
+
+        data = self.paginate_data(request, qs, SomeOIRankSerializer)
+        return self.success(data)
         except User.DoesNotExist:
             return self.error("User does not exist")
         return self.success({"username": user.username, "avatar": user.userprofile.avatar, "admin_type": user.admin_type})
