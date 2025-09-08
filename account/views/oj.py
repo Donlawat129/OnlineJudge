@@ -1,7 +1,6 @@
 import os
 from datetime import timedelta
 from importlib import import_module
-from account.utils import filter_users_in_same_groups
 
 import qrcode
 from django.conf import settings
@@ -12,6 +11,7 @@ from django.utils.timezone import now
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from otpauth import OtpAuth
 
+from account.utils import filter_users_in_same_groups
 from problem.models import Problem
 from utils.constants import ContestRuleType
 from options.options import SysOptions
@@ -20,12 +20,16 @@ from utils.captcha import Captcha
 from utils.shortcuts import rand_str, img2base64, datetime2str
 from ..decorators import login_required
 from ..models import User, UserProfile, AdminType
-from ..serializers import (ApplyResetPasswordSerializer, ResetPasswordSerializer,
-                           UserChangePasswordSerializer, UserLoginSerializer,
-                           UserRegisterSerializer, UsernameOrEmailCheckSerializer,
-                           RankInfoSerializer, UserChangeEmailSerializer, SSOSerializer)
-from ..serializers import (TwoFactorAuthCodeSerializer, UserProfileSerializer,
-                           EditUserProfileSerializer, ImageUploadForm)
+from ..serializers import (
+    ApplyResetPasswordSerializer, ResetPasswordSerializer,
+    UserChangePasswordSerializer, UserLoginSerializer,
+    UserRegisterSerializer, UsernameOrEmailCheckSerializer,
+    RankInfoSerializer, UserChangeEmailSerializer, SSOSerializer,
+)
+from ..serializers import (
+    TwoFactorAuthCodeSerializer, UserProfileSerializer,
+    EditUserProfileSerializer, ImageUploadForm,
+)
 from ..tasks import send_email_async
 
 
@@ -380,20 +384,18 @@ class UserRankAPI(APIView):
         if rule_type not in ContestRuleType.choices():
             rule_type = ContestRuleType.ACM
 
-        # ❶ เลือกเฉพาะผู้ใช้ที่อนุญาตตามกลุ่มเดียวกันก่อน
+        # กรองสิทธิ์ตามกลุ่มเดียวกัน
         allowed_users = filter_users_in_same_groups(
             User.objects.filter(is_disabled=False, admin_type=AdminType.REGULAR_USER),
             request.user
         )
 
-        # ❷ คิวรีโปรไฟล์เฉพาะของผู้ใช้ที่ผ่านการกรอง
         profiles = (
             UserProfile.objects
             .filter(user__in=allowed_users)
             .select_related("user")
         )
 
-        # ❸ เงื่อนไขจัดอันดับเหมือนเดิม
         if rule_type == ContestRuleType.ACM:
             profiles = profiles.filter(submission_number__gt=0) \
                                .order_by("-accepted_number", "submission_number")
@@ -454,28 +456,3 @@ class SSOAPI(CSRFExemptAPIView):
         user.save()
         auth.login(request, user)
         return self.success("Succeeded")
-
-
-class ACMRankAPI(APIView):
-    def get(self, request):
-        # ... โค้ดเดิมประกอบ queryset ของผู้ใช้/อันดับ ...
-        qs = User.objects.filter(is_disabled=False)  # หรือ qs เดิมของคุณ
-        # ⭐ สำคัญ: กรองด้วยกลุ่มเดียวกัน
-        qs = filter_users_in_same_groups(qs, request.user)
-
-        # ที่เหลือตามเดิม (annotate/ordering/paginate/serialize)
-        data = self.paginate_data(request, qs, SomeUserRankSerializer)
-        return self.success(data)
-
-class OIRankAPI(APIView):
-    def get(self, request):
-        # ... โค้ดเดิมประกอบ queryset ...
-        qs = User.objects.filter(is_disabled=False)
-        # ⭐ กรองเหมือนกัน
-        qs = filter_users_in_same_groups(qs, request.user)
-
-        data = self.paginate_data(request, qs, SomeOIRankSerializer)
-        return self.success(data)
-        except User.DoesNotExist:
-            return self.error("User does not exist")
-        return self.success({"username": user.username, "avatar": user.userprofile.avatar, "admin_type": user.admin_type})
