@@ -448,6 +448,12 @@ class SSOAPI(CSRFExemptAPIView):
     def post(self, request):
         try:
             user = User.objects.get(auth_token=request.data["token"])
+        except User.DoesNotExist:
+            return self.error("Invalid token")
+        user.auth_token = None
+        user.save()
+        auth.login(request, user)
+        return self.success("Succeeded")
 
 
 class ACMRankAPI(APIView):
