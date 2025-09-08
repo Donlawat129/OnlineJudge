@@ -17,6 +17,7 @@ from fps.parser import FPSHelper, FPSParser
 from judge.dispatcher import SPJCompiler
 from options.options import SysOptions
 from submission.models import Submission, JudgeStatus
+from account.models import Group
 from utils.api import APIView, CSRFExemptAPIView, validate_serializer, APIError
 from utils.constants import Difficulty
 from utils.shortcuts import rand_str, natural_sort_key
@@ -307,6 +308,55 @@ class ProblemAPI(ProblemBase):
         qs.delete()
         return self.success()
 
+
+class ProblemGroupBase(APIView):
+    @problem_permission_required
+    def _get_problems(self, request, ids):
+        if not ids or not isinstance(ids, list):
+            raise APIError("problem_ids is required and must be a list")
+        qs = Problem.objects.filter(id__in=ids, contest_id__isnull=True)
+        # จำกัดสิทธิ์เฉพาะโจทย์ที่ผู้ใช้คนนี้แก้ไขได้
+        if not request.user.can_mgmt_all_problem():
+            qs = qs.filter(created_by=request.user)
+        return qs
+
+
+class AssignProblemsToGroupAPI(ProblemGroupBase):
+    def post(self, request):
+        problem_ids = request.data.get("problem_ids", [])
+        group_name = (request.data.get("group_name") or "").strip()
+        if not group_name:
+            return self.error("group_name is required")
+        qs = self._get_problems(request, problem_ids)
+        group, _ = Group.objects.get_or_create(name=group_name)
+        for p in qs:
+            p.groups.add(group)
+        return self.success()
+
+
+class RemoveProblemsFromGroupAPI(ProblemGroupBase):
+    def post(self, request):
+        problem_ids = request.data.get("problem_ids", [])
+        group_name = (request.data.get("group_name") or "").strip()
+        if not group_name:
+            return self.error("group_name is required")
+        qs = self._get_problems(request, problem_ids)
+        try:
+            group = Group.objects.get(name=group_name)
+        except Group.DoesNotExist:
+            return self.error("Group does not exist")
+        for p in qs:
+            p.groups.remove(group)
+        return self.success()
+
+
+class ClearProblemsGroupsAPI(ProblemGroupBase):
+    def post(self, request):
+        problem_ids = request.data.get("problem_ids", [])
+        qs = self._get_problems(request, problem_ids)
+        for p in qs:
+            p.groups.clear()
+        return self.success()
 
 
 class ContestProblemAPI(ProblemBase):
