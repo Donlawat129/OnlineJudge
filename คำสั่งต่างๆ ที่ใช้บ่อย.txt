@@ -21,6 +21,12 @@ docker compose build --pull --no-cache oj-backend
 docker compose up -d
 docker compose ps
 
+docker compose exec oj-backend python manage.py makemigrations account --name add_groups
+docker compose exec oj-backend python manage.py migrate
+
+docker compose exec oj-backend python manage.py makemigrations problem --name add_problem_groups
+docker compose exec oj-backend python manage.py migrate
+
 git status
 
 git reset --hard ssh
@@ -30,3 +36,4 @@ git push origin master --force
 git log --oneline
 
 set NODE_OPTIONS=--openssl-legacy-provider
+
