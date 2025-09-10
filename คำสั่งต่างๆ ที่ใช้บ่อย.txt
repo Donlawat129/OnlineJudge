@@ -37,3 +37,6 @@ git log --oneline
 
 set NODE_OPTIONS=--openssl-legacy-provider
 
+set TARGET=http://18.141.57.26/
+
+
