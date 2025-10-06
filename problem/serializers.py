@@ -72,11 +72,11 @@ class CreateOrEditProblemSerializer(serializers.Serializer):
     share_submission = serializers.BooleanField()
 
     def _get_or_create_tags(self, tag_names):
-            tags = []
-            for name in tag_names or []:
-                tag, _ = ProblemTag.objects.get_or_create(name=name)
-                tags.append(tag)
-            return tags
+        tags = []
+        for name in tag_names or []:
+            tag, _ = ProblemTag.objects.get_or_create(name=name)
+            tags.append(tag)
+        return tags
     
     def create(self, validated_data):
         tag_names = validated_data.pop('tags', [])
@@ -137,14 +137,6 @@ class BaseProblemSerializer(serializers.ModelSerializer):
         for lang, code in obj.template.items():
             ret[lang] = parse_problem_template(code)["template"]
         return ret
-
-
-class ProblemAdminSerializer(BaseProblemSerializer):
-    groups = serializers.SlugRelatedField(many=True, slug_field="name", read_only=True)
-    
-    class Meta:
-        model = Problem
-        fields = "__all__"
 
 
 class ProblemSerializer(BaseProblemSerializer):
@@ -224,7 +216,7 @@ class ExportProblemSerializer(serializers.ModelSerializer):
         fields = ("display_id", "title", "description", "tags",
                   "input_description", "output_description",
                   "test_case_score", "hint", "time_limit", "memory_limit", "samples",
-                  "template", "spj", "rule_type", "source", "template")
+                  "template", "spj", "rule_type", "source")
 
 
 class AddContestProblemSerializer(serializers.Serializer):
