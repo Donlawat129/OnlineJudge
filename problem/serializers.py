@@ -10,8 +10,6 @@ from utils.serializers import LanguageNameMultiChoiceField, SPJLanguageNameChoic
 from .models import Problem, ProblemRuleType, ProblemTag, ProblemIOMode
 from .utils import parse_problem_template
 
-from problem.models import ProblemTag
-
 
 class TestCaseUploadForm(forms.Form):
     spj = forms.CharField(max_length=12)
@@ -68,27 +66,38 @@ class CreateOrEditProblemSerializer(serializers.Serializer):
     spj_compile_ok = serializers.BooleanField(default=False)
     visible = serializers.BooleanField()
     difficulty = serializers.ChoiceField(choices=Difficulty.choices())
-    tags = serializers.ListField(child=serializers.CharField(max_length=32), allow_empty=False)
+    tags = serializers.ListField(child=serializers.CharField(max_length=32), allow_empty=True, required=False, default=list)
     hint = serializers.CharField(allow_blank=True, allow_null=True)
     source = serializers.CharField(max_length=256, allow_blank=True, allow_null=True)
     share_submission = serializers.BooleanField()
 
-    def create_or_edit_tags(self, tag_names):
-        """
-        สร้างหรือดึง tag ตามชื่อที่ผู้ใช้ส่งมา
-        """
-        tags = []
-        for name in tag_names:
-            tag, created = ProblemTag.objects.get_or_create(name=name)  # สร้างหรือดึง tag
-            tags.append(tag)
-        return tags
-
-    def save(self, *args, **kwargs):
-        tag_names = self.validated_data.get('tags', [])
-        tags = self.create_or_edit_tags(tag_names)
-        
-        # เพิ่ม tags เข้าไปในข้อมูลของ problem
-        self.instance.tags.set(tags)
+    def _get_or_create_tags(self, tag_names):
+            tags = []
+            for name in tag_names or []:
+                tag, _ = ProblemTag.objects.get_or_create(name=name)
+                tags.append(tag)
+            return tags
+    
+    def create(self, validated_data):
+        tag_names = validated_data.pop('tags', [])
+        problem = Problem.objects.create(**validated_data)
+        if tag_names:
+            problem.tags.set(self._get_or_create_tags(tag_names))
+        else:
+            problem.tags.clear()
+        return problem
+    
+    def update(self, instance, validated_data):
+        tag_names = validated_data.pop('tags', None)  # None = ไม่แก้, [] = เคลียร์
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+        instance.save()
+        if tag_names is not None:
+            if tag_names:
+                instance.tags.set(self._get_or_create_tags(tag_names))
+            else:
+                instance.tags.clear()
+        return instance
 
 
 class CreateProblemSerializer(CreateOrEditProblemSerializer):
@@ -275,7 +284,7 @@ class ImportProblemSerializer(serializers.Serializer):
     rule_type = serializers.ChoiceField(choices=ProblemRuleType.choices())
     source = serializers.CharField(max_length=200, allow_blank=True, allow_null=True)
     answers = serializers.ListField(child=AnswerSerializer())
-    tags = serializers.ListField(child=serializers.CharField())
+    tags = serializers.ListField(child=serializers.CharField(max_length=32), allow_empty=True, required=False, default=list)
 
 
 class FPSProblemSerializer(serializers.Serializer):
