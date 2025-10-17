@@ -95,13 +95,20 @@ class SubmissionAPI(APIView):
             submission = Submission.objects.select_related("problem").get(id=submission_id)
         except Submission.DoesNotExist:
             return self.error("Submission doesn't exist")
-        if not submission.check_user_permission(request.user):
-            return self.error("No permission for this submission")
-
-        if submission.problem.rule_type == ProblemRuleType.OI or request.user.is_admin_role():
-            submission_data = SubmissionModelSerializer(submission).data
+        
+        if submission.contest_id:
+            # ถ้ามี contest -> คงพฤติกรรมเดิม (ต้องมีสิทธิ์)
+            if not submission.check_user_permission(request.user):
+                return self.error("No permission for this submission")
+            # serializer เลือกแบบเดิม: OI หรือ admin ได้เห็น info เต็ม
+            if submission.problem.rule_type == ProblemRuleType.OI or request.user.is_admin_role():
+                submission_data = SubmissionModelSerializer(submission).data
+            else:
+                submission_data = SubmissionSafeModelSerializer(submission).data
         else:
-            submission_data = SubmissionSafeModelSerializer(submission).data
+            # ✅ นอกคอนเทสต์: อนุญาตผู้ใช้ที่ล็อกอินทุกคนเห็นรายละเอียดเต็ม ๆ
+            submission_data = SubmissionModelSerializer(submission).data
+            
         # 是否有权限取消共享
         submission_data["can_unshare"] = submission.check_user_permission(request.user, check_share=False)
         return self.success(submission_data)
